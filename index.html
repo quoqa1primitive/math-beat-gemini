@@ -65,6 +65,8 @@
     #upload-overlay.hidden { display: none; }
 
     #upload-btn {
+      position: relative; /* input absolute 기준 */
+      display: inline-block;
       padding: 14px 34px;
       background: var(--sp-green);
       border: none;
@@ -77,6 +79,7 @@
       text-transform: uppercase;
       cursor: pointer;
       transition: transform 0.1s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
     }
     #upload-btn:hover {
       transform: scale(1.05);
@@ -364,9 +367,13 @@
 ══════════════════════════════════════════════════════ -->
 <div id="canvas-container">
   <div id="upload-overlay">
-    <button id="upload-btn">이미지 업로드</button>
+    <label id="upload-btn">
+      이미지 업로드
+      <input type="file" id="file-input" accept="image/*"
+        style="position:absolute;width:0;height:0;opacity:0;overflow:hidden;">
+    </label>
     <p>패턴이나 무늬가 있는 사진을 골라보세요</p>
-    <input type="file" id="file-input" accept="image/*">
+    <div id="dbg" style="font-size:11px;color:#aaa;text-align:center;max-width:280px;word-break:break-all;"></div>
   </div>
 </div>
 
@@ -1548,9 +1555,14 @@ new p5(function(p) {
     if (window._pendingImageURL) {
       const url = window._pendingImageURL;
       window._pendingImageURL = null;
+      const dbgEl = document.getElementById('dbg');
+      if (dbgEl) dbgEl.textContent = '[6] p5.loadImage 시작';
       p.loadImage(url, img => {
+        if (dbgEl) dbgEl.textContent = '[7] 이미지 로드 성공 ✓';
         State.uploadedImage = img;
         updateDashboard();
+      }, err => {
+        if (dbgEl) dbgEl.textContent = `[7] 이미지 로드 실패: ${err}`;
       });
     }
 
@@ -1605,11 +1617,15 @@ new p5(function(p) {
   };
 
   p.touchStarted = function() {
-    if (!State.uploadedImage) return; // 업로드 오버레이 터치는 브라우저 기본 동작 허용
+    if (!State.uploadedImage) return;
+    // 캔버스 범위 밖 터치(버튼 등)는 브라우저 기본 동작 허용
+    const onCanvas = p.mouseX >= 0 && p.mouseX <= p.width &&
+                     p.mouseY >= 0 && p.mouseY <= p.height;
+    if (!onCanvas) return;
     if (State.currentStage === 1) Stage2.onMousePressed(p, imgX, imgY, imgW, imgH);
     if (State.currentStage === 2) Stage3.onMousePressed(p);
     if (State.currentStage === 3) Stage1.onMousePressed(p);
-    return false;
+    return false; // 캔버스 안에서만 스크롤 방지
   };
 
   p.touchMoved = function() {
@@ -1643,19 +1659,39 @@ new p5(function(p) {
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── 이미지 업로드 ──
-  const uploadBtn = document.getElementById('upload-btn');
   const fileInput = document.getElementById('file-input');
-  uploadBtn.addEventListener('click', () => fileInput.click());
+  // upload-btn은 label이므로 JS click 리스너 불필요 — 브라우저가 직접 input 활성화
 
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    // 파일 읽기만 수행 (Tone.start()는 재생 버튼에서 처리)
-    const url = URL.createObjectURL(file);
-    window._pendingImageURL = url;
-    document.getElementById('upload-overlay').classList.add('hidden');
-    updateDashboard();
-    fileInput.value = '';
+  const dbg = document.getElementById('dbg');
+  const log = (msg) => { dbg.textContent = msg; console.log('[DBG]', msg); };
+
+  // change + input 둘 다 감지 (Android 호환)
+  ['change', 'input'].forEach(evtName => {
+    fileInput.addEventListener(evtName, (e) => {
+      if (window._uploadHandled) return; // 중복 방지
+      const file = e.target.files[0];
+      log(`[1] ${evtName} 이벤트 감지 / file=${file ? file.name : 'null'}`);
+      if (!file) { log('[1] 파일 없음 — 종료'); return; }
+      window._uploadHandled = true;
+      setTimeout(() => { window._uploadHandled = false; }, 1000);
+
+      let url;
+      try {
+        url = URL.createObjectURL(file);
+        log(`[2] createObjectURL 성공`);
+      } catch(err) {
+        log(`[2] createObjectURL 실패: ${err.message}`);
+        return;
+      }
+
+      window._pendingImageURL = url;
+      log('[3] pendingImageURL 설정 완료');
+      document.getElementById('upload-overlay').classList.add('hidden');
+      log('[4] 오버레이 숨김');
+      updateDashboard();
+      log('[5] updateDashboard 완료');
+      fileInput.value = '';
+    });
   });
 
   // ── 단계 탭 ──
