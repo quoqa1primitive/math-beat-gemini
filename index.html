@@ -897,7 +897,11 @@ const AudioEngine = (() => {
   // ── 3단계 적용 (하이햇 + BPM) — 스티커 개수 기준 2개마다 단계 상승 ──
   function applyStage3(count, dominantSize) {
     const bpm = count >= 8 ? 155 : count >= 6 ? 145 : count >= 4 ? 130 : count >= 2 ? 115 : 100;
-    setBPM(bpm);
+    // BPM이 실제로 바뀔 때만 호출 — rampTo는 내부적으로 cancelScheduledValues를 실행해
+    // Transport tick 스케줄러를 건드리므로, 불필요한 호출 시 kick/snare 시퀀스가 끊김
+    if (bpm !== (State.stage3.bpm || 100)) {
+      setBPM(bpm);
+    }
     State.stage3.bpm = bpm;
 
     if (count < 1) {
