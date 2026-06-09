@@ -1639,6 +1639,30 @@ const Stage3 = {
 // ============================================================
 // [UI]
 // ============================================================
+// ── Gemini 프롬프트 (전역 — updateDashboard에서 접근하므로 반드시 전역 선언) ──
+const GEMINI_PROMPT_TEMPLATE = `[필수 규칙]
+- Strict {BPM} BPM, pure instrumental track.
+- 오직 {BPM} BPM의 고정된 정박(Strictly Quantized)으로만 연주할 것.
+- 드럼 절대 제외: 킥, 스네어, 하이햇, 클랩, 또는 그 어떤 퍼커션 사운드도 절대 포함하지 말 것.
+- 외부 드럼 비트가 들어갈 공간을 완벽히 비워두고, 오직 멜로디와 화성(코드) 요소로만 구성할 것.
+
+[핵심 악기 및 리듬 구성]
+- 메인 화성: 전체적인 곡의 무드에 맞는 메인 악기로 연주하는 풍성한 코드 진행. 단, 음이 늘어지지 않게 정박에 딱 맞춰 연주할 것.
+- 리듬 가이드(필수): 박자가 느려지는 것을 방지하기 위해, 어택이 강하고 선명한 [예: 신스 플러크(Synth Pluck) 또는 아르페지오(Arpeggio)] 멜로디를 넣어 16비트/8비트 리듬감을 칼같이 표현할 것.
+- 베이스: 저음역대를 흐리지 않으면서 리듬감을 채워줄 수 있는 깔끔하고 박자감이 명확한(Sharp attack) 서브 베이스나 신스 베이스 라인.
+
+[선택 요소]
+- [분위기]: 전체적인 곡의 무드`;
+
+function getGeminiPrompt() {
+  const bpm = State.stage3.bpm || 100;
+  return GEMINI_PROMPT_TEMPLATE.replaceAll('{BPM}', bpm);
+}
+
+function renderGeminiPrompt() {
+  document.getElementById('gemini-prompt-box').textContent = getGeminiPrompt();
+}
+
 function updateDashboard() {
   const s1=State.stage1, s2=State.stage2, s3=State.stage3, s4=State.stage4;
   // 탭 순서: 1=대칭(s2), 2=반복패턴(s3), 3=자기닮음(s1), 4=Gemini믹스(s4)
@@ -2074,29 +2098,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Gemini 프롬프트 복사 ──
-  const GEMINI_PROMPT_TEMPLATE = `[필수 규칙]
-- Strict {BPM} BPM, pure instrumental track.
-- 오직 {BPM} BPM의 고정된 정박(Strictly Quantized)으로만 연주할 것.
-- 드럼 절대 제외: 킥, 스네어, 하이햇, 클랩, 또는 그 어떤 퍼커션 사운드도 절대 포함하지 말 것.
-- 외부 드럼 비트가 들어갈 공간을 완벽히 비워두고, 오직 멜로디와 화성(코드) 요소로만 구성할 것.
-
-[핵심 악기 및 리듬 구성]
-- 메인 화성: 전체적인 곡의 무드에 맞는 메인 악기로 연주하는 풍성한 코드 진행. 단, 음이 늘어지지 않게 정박에 딱 맞춰 연주할 것.
-- 리듬 가이드(필수): 박자가 느려지는 것을 방지하기 위해, 어택이 강하고 선명한 [예: 신스 플러크(Synth Pluck) 또는 아르페지오(Arpeggio)] 멜로디를 넣어 16비트/8비트 리듬감을 칼같이 표현할 것.
-- 베이스: 저음역대를 흐리지 않으면서 리듬감을 채워줄 수 있는 깔끔하고 박자감이 명확한(Sharp attack) 서브 베이스나 신스 베이스 라인.
-
-[선택 요소]
-- [분위기]: 전체적인 곡의 무드`;
-
-  function getGeminiPrompt() {
-    const bpm = State.stage3.bpm || 100;
-    return GEMINI_PROMPT_TEMPLATE.replaceAll('{BPM}', bpm);
-  }
-
-  function renderGeminiPrompt() {
-    document.getElementById('gemini-prompt-box').textContent = getGeminiPrompt();
-  }
-
   document.getElementById('copy-prompt-btn').addEventListener('click', async () => {
     const text = getGeminiPrompt();
     const btn = document.getElementById('copy-prompt-btn');
@@ -2120,9 +2121,6 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.classList.remove('copied');
     }, 2000);
   });
-
-  // 4단계 진입 시 프롬프트 BPM 반영
-  const origUpdateDashboard = updateDashboard;
 
   // ── Gemini 음원 업로드 ──
   const geminiUploadBtn = document.getElementById('gemini-upload-btn');
