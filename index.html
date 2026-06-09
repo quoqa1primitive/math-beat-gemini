@@ -336,6 +336,37 @@
       text-align: center;
       min-height: 18px;
     }
+    #gemini-prompt-box {
+      background: var(--sp-surface-2);
+      border: 1px solid var(--sp-border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 11px;
+      color: var(--sp-text-sub);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    #copy-prompt-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 10px;
+      background: var(--sp-green);
+      color: #000;
+      font-weight: 600;
+      font-size: 13px;
+      border: none;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    #copy-prompt-btn:hover { background: #1adb55; }
+    #copy-prompt-btn.copied { background: var(--sp-surface-3); color: var(--sp-text-sub); }
     #comp-gemini-row {
       font-size: 12px;
       color: var(--sp-text-sub);
@@ -425,6 +456,12 @@
 
   <!-- 4단계: Gemini 믹스 UI -->
   <div id="stage4-panel">
+    <div style="font-size:12px;color:var(--sp-text-sub);line-height:1.5;">
+      아래 프롬프트를 복사해서 Gemini에 붙여넣으세요.<br>
+      BPM은 현재 비트에 맞게 자동 입력됩니다.
+    </div>
+    <div id="gemini-prompt-box"></div>
+    <button id="copy-prompt-btn">📋 프롬프트 복사</button>
     <button class="action-btn" id="gemini-upload-btn"
       style="background:var(--sp-surface-2);color:var(--sp-text);border:1px solid var(--sp-border-3);">
       Gemini 음원 업로드
@@ -1495,6 +1532,9 @@ function updateDashboard() {
   document.getElementById('stage4-panel').style.display =
     (State.currentStage === 4 && !!State.uploadedImage) ? 'flex' : 'none';
 
+  // 4단계 진입 시 프롬프트 BPM 반영
+  if (State.currentStage === 4) renderGeminiPrompt();
+
   // 완료 버튼: 탭4 + Gemini 업로드 완료 시
   document.getElementById('finish-btn').style.display =
     (State.currentStage === 4 && s4.done) ? 'block' : 'none';
@@ -1828,6 +1868,57 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('close-completion-btn').addEventListener('click', () => {
     document.getElementById('completion-overlay').classList.remove('visible');
   });
+
+  // ── Gemini 프롬프트 복사 ──
+  const GEMINI_PROMPT_TEMPLATE = `[필수 규칙]
+- Strict {BPM} BPM, pure instrumental track.
+- 오직 {BPM} BPM의 고정된 정박(Strictly Quantized)으로만 연주할 것.
+- 드럼 절대 제외: 킥, 스네어, 하이햇, 클랩, 또는 그 어떤 퍼커션 사운드도 절대 포함하지 말 것.
+- 외부 드럼 비트가 들어갈 공간을 완벽히 비워두고, 오직 멜로디와 화성(코드) 요소로만 구성할 것.
+
+[핵심 악기 및 리듬 구성]
+- 메인 화성: 전체적인 곡의 무드에 맞는 메인 악기로 연주하는 풍성한 코드 진행. 단, 음이 늘어지지 않게 정박에 딱 맞춰 연주할 것.
+- 리듬 가이드(필수): 박자가 느려지는 것을 방지하기 위해, 어택이 강하고 선명한 [예: 신스 플러크(Synth Pluck) 또는 아르페지오(Arpeggio)] 멜로디를 넣어 16비트/8비트 리듬감을 칼같이 표현할 것.
+- 베이스: 저음역대를 흐리지 않으면서 리듬감을 채워줄 수 있는 깔끔하고 박자감이 명확한(Sharp attack) 서브 베이스나 신스 베이스 라인.
+
+[선택 요소]
+- [분위기]: 전체적인 곡의 무드`;
+
+  function getGeminiPrompt() {
+    const bpm = State.stage3.bpm || 100;
+    return GEMINI_PROMPT_TEMPLATE.replaceAll('{BPM}', bpm);
+  }
+
+  function renderGeminiPrompt() {
+    document.getElementById('gemini-prompt-box').textContent = getGeminiPrompt();
+  }
+
+  document.getElementById('copy-prompt-btn').addEventListener('click', async () => {
+    const text = getGeminiPrompt();
+    const btn = document.getElementById('copy-prompt-btn');
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    btn.textContent = '✓ 복사됨!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 프롬프트 복사';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+
+  // 4단계 진입 시 프롬프트 BPM 반영
+  const origUpdateDashboard = updateDashboard;
 
   // ── Gemini 음원 업로드 ──
   const geminiUploadBtn = document.getElementById('gemini-upload-btn');
