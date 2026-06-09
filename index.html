@@ -336,6 +336,83 @@
       color: var(--sp-text);
     }
 
+    /* ── 3단계 비트 다운로드 팝업 ── */
+    #beat-popup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.87);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    #beat-popup-overlay.visible { display: flex; }
+    #beat-popup-card {
+      background: var(--sp-surface-1);
+      border: 1px solid var(--sp-border-2);
+      border-radius: 8px;
+      padding: 28px 32px;
+      max-width: 420px;
+      width: 94%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: center;
+      box-shadow: var(--sp-elev-3);
+    }
+    #beat-popup-card h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--sp-text);
+    }
+    #beat-popup-stats {
+      background: var(--sp-surface-2);
+      border-radius: 6px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      text-align: left;
+    }
+    #beat-popup-stats .comp-card-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--sp-text-muted);
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--sp-border);
+    }
+    #beat-dl-btn {
+      background: var(--sp-green);
+      color: #000;
+      padding: 14px 32px;
+      border-radius: 9999px;
+      font-family: var(--sp-font);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #beat-dl-btn:hover { background: #1fdf64; transform: scale(1.04); }
+    #beat-dl-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+    #beat-popup-close {
+      background: transparent;
+      border: 1px solid var(--sp-border-2);
+      color: var(--sp-text-sub);
+      padding: 10px 16px;
+      border-radius: 9999px;
+      font-family: var(--sp-font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #beat-popup-close:hover { border-color: var(--sp-border-3); color: var(--sp-text); }
+
     /* ── Stage 4 슬라이더 ── */
     #stage4-panel { display: none; flex-direction: column; gap: 10px; }
     #gemini-status {
@@ -481,6 +558,34 @@
   <button class="action-btn" id="beat-download-btn" style="display:none;">⬇ 내 비트 다운로드</button>
   <button class="action-btn" id="finish-btn" style="display:none;">비트 완성!</button>
   <button class="action-btn" id="reset-btn">↺ 초기화</button>
+</div>
+
+<!-- 3단계 비트 다운로드 팝업 -->
+<div id="beat-popup-overlay">
+  <div id="beat-popup-card">
+    <h2>🎵 내 비트 완성!</h2>
+    <div id="beat-popup-stats">
+      <div class="comp-card-title">비트 정보</div>
+      <div class="comp-row">
+        <span class="comp-label">BPM</span>
+        <span class="comp-value highlight" id="bp-bpm">—</span>
+      </div>
+      <div class="comp-row">
+        <span class="comp-label">대칭</span>
+        <span class="comp-value" id="bp-sym">—</span>
+      </div>
+      <div class="comp-row">
+        <span class="comp-label">닮음비</span>
+        <span class="comp-value" id="bp-ratio">—</span>
+      </div>
+      <div class="comp-row">
+        <span class="comp-label">하이햇</span>
+        <span class="comp-value" id="bp-hihat">—</span>
+      </div>
+    </div>
+    <button id="beat-dl-btn">⬇ 비트 다운로드</button>
+    <button id="beat-popup-close">닫기</button>
+  </div>
 </div>
 
 <!-- 완료 오버레이 -->
@@ -1895,9 +2000,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (p) Stage2.detectAndApply(p, imgW);
   });
 
-  // 비트 다운로드 버튼 (3단계 완료 후, Gemini 없이 순수 비트만)
-  document.getElementById('beat-download-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('beat-download-btn');
+  // 비트 다운로드 버튼 → 팝업 열기
+  document.getElementById('beat-download-btn').addEventListener('click', () => {
+    const s1 = State.stage1, s2 = State.stage2, s3 = State.stage3;
+    const NA = '발견되지 않음';
+
+    document.getElementById('bp-bpm').textContent = s3.bpm ? `${s3.bpm} BPM` : '100 BPM';
+    document.getElementById('bp-sym').textContent =
+      s2.symmetryType === 'line' ? '선대칭' :
+      s2.symmetryType === 'point' ? '점대칭' : NA;
+    document.getElementById('bp-ratio').textContent =
+      s1.ratio !== null ? s1.ratio.toFixed(2) : NA;
+
+    const hihatMap = { small: '6연음 롤', mid: '8비트 셔플', large: '3연음' };
+    document.getElementById('bp-hihat').textContent =
+      s3.stickerCategory ? (hihatMap[s3.stickerCategory] || NA) : NA;
+
+    document.getElementById('beat-popup-overlay').classList.add('visible');
+  });
+
+  // 팝업 내 다운로드 버튼
+  document.getElementById('beat-dl-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('beat-dl-btn');
     if (btn.disabled) return;
     btn.disabled = true;
     btn.textContent = '⏳ 렌더링 중...';
@@ -1913,14 +2037,19 @@ document.addEventListener('DOMContentLoaded', () => {
       URL.revokeObjectURL(url);
       btn.textContent = '✓ 다운로드 완료!';
       setTimeout(() => {
-        btn.textContent = '⬇ 내 비트 다운로드';
+        btn.textContent = '⬇ 비트 다운로드';
         btn.disabled = false;
       }, 3000);
     } catch (e) {
       console.error(e);
-      btn.textContent = '⬇ 내 비트 다운로드';
+      btn.textContent = '⬇ 비트 다운로드';
       btn.disabled = false;
     }
+  });
+
+  // 팝업 닫기
+  document.getElementById('beat-popup-close').addEventListener('click', () => {
+    document.getElementById('beat-popup-overlay').classList.remove('visible');
   });
 
   // 완료 버튼
