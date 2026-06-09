@@ -208,6 +208,14 @@
     }
     #detect-btn:hover { background: var(--sp-surface-3) !important; }
 
+    #beat-download-btn {
+      background: var(--sp-surface-2);
+      color: var(--sp-green);
+      border: 1px solid var(--sp-green);
+    }
+    #beat-download-btn:hover { background: var(--sp-surface-3); }
+    #beat-download-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
     #finish-btn {
       background: var(--sp-text) !important;
       color: #000000 !important;
@@ -470,6 +478,7 @@
   </div>
   <input type="file" id="gemini-file-input" accept="audio/*" style="display:none;">
 
+  <button class="action-btn" id="beat-download-btn" style="display:none;">⬇ 내 비트 다운로드</button>
   <button class="action-btn" id="finish-btn" style="display:none;">비트 완성!</button>
   <button class="action-btn" id="reset-btn">↺ 초기화</button>
 </div>
@@ -1555,6 +1564,10 @@ function updateDashboard() {
   // 4단계 진입 시 프롬프트 BPM 반영
   if (State.currentStage === 4) renderGeminiPrompt();
 
+  // 비트 다운로드 버튼: 탭3 + 3단계(자기닮음) 완료 시
+  document.getElementById('beat-download-btn').style.display =
+    (State.currentStage === 3 && s1.done) ? 'block' : 'none';
+
   // 완료 버튼: 탭4 + Gemini 업로드 완료 시
   document.getElementById('finish-btn').style.display =
     (State.currentStage === 4 && s4.done) ? 'block' : 'none';
@@ -1880,6 +1893,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const p   = window._p5Instance;
     const imgW = window._canvasImgW || 500;
     if (p) Stage2.detectAndApply(p, imgW);
+  });
+
+  // 비트 다운로드 버튼 (3단계 완료 후, Gemini 없이 순수 비트만)
+  document.getElementById('beat-download-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('beat-download-btn');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.textContent = '⏳ 렌더링 중...';
+    try {
+      await AudioEngine.init();
+      const buffer = await AudioEngine.renderOfflineWAV(30);
+      const wav = audioBufferToWav(buffer);
+      const url = URL.createObjectURL(wav);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'my-beat.wav';
+      a.click();
+      URL.revokeObjectURL(url);
+      btn.textContent = '✓ 다운로드 완료!';
+      setTimeout(() => {
+        btn.textContent = '⬇ 내 비트 다운로드';
+        btn.disabled = false;
+      }, 3000);
+    } catch (e) {
+      console.error(e);
+      btn.textContent = '⬇ 내 비트 다운로드';
+      btn.disabled = false;
+    }
   });
 
   // 완료 버튼
