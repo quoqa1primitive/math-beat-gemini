@@ -1995,10 +1995,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (n === State.currentStage) return;
 
       if (n < State.currentStage) {
-        // 역방향: 목적지부터 현재 단계까지 모두 초기화
-        for (let i = n; i <= State.currentStage; i++) {
-          resetStage(i);
-        }
+        // 역방향: 목적지 단계만 초기화 (상위 단계 비트는 유지)
+        resetStage(n);
       }
       State.currentStage = n;
       updateDashboard();
@@ -2037,26 +2035,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 비트 다운로드 버튼 → 팝업 열기
-  document.getElementById('beat-download-btn').addEventListener('click', () => {
+  function openBeatPopup() {
     const s1 = State.stage1, s2 = State.stage2, s3 = State.stage3;
     const NA = '발견되지 않음';
-
     document.getElementById('bp-bpm').textContent = s3.bpm ? `${s3.bpm} BPM` : '100 BPM';
     document.getElementById('bp-sym').textContent =
       s2.symmetryType === 'line' ? '선대칭' :
       s2.symmetryType === 'point' ? '점대칭' : NA;
     document.getElementById('bp-ratio').textContent =
       s1.ratio !== null ? s1.ratio.toFixed(2) : NA;
-
     const hihatMap = { small: '6연음 롤', mid: '8비트 셔플', large: '3연음' };
     document.getElementById('bp-hihat').textContent =
       s3.stickerCategory ? (hihatMap[s3.stickerCategory] || NA) : NA;
-
     document.getElementById('beat-popup-overlay').classList.add('visible');
-  });
+  }
+
+  const beatDownloadBtn = document.getElementById('beat-download-btn');
+  beatDownloadBtn.addEventListener('click', openBeatPopup);
+  beatDownloadBtn.addEventListener('touchend', (e) => { e.preventDefault(); openBeatPopup(); });
 
   // 팝업 내 다운로드 버튼
-  document.getElementById('beat-dl-btn').addEventListener('click', async () => {
+  async function doBeatDownload() {
     const btn = document.getElementById('beat-dl-btn');
     if (btn.disabled) return;
     btn.disabled = true;
@@ -2072,21 +2071,24 @@ document.addEventListener('DOMContentLoaded', () => {
       a.click();
       URL.revokeObjectURL(url);
       btn.textContent = '✓ 다운로드 완료!';
-      setTimeout(() => {
-        btn.textContent = '⬇ 비트 다운로드';
-        btn.disabled = false;
-      }, 3000);
+      setTimeout(() => { btn.textContent = '⬇ 비트 다운로드'; btn.disabled = false; }, 3000);
     } catch (e) {
       console.error(e);
       btn.textContent = '⬇ 비트 다운로드';
       btn.disabled = false;
     }
-  });
+  }
+  const beatDlBtn = document.getElementById('beat-dl-btn');
+  beatDlBtn.addEventListener('click', doBeatDownload);
+  beatDlBtn.addEventListener('touchend', (e) => { e.preventDefault(); doBeatDownload(); });
 
   // 팝업 닫기
-  document.getElementById('beat-popup-close').addEventListener('click', () => {
+  function closeBeatPopup() {
     document.getElementById('beat-popup-overlay').classList.remove('visible');
-  });
+  }
+  const beatPopupClose = document.getElementById('beat-popup-close');
+  beatPopupClose.addEventListener('click', closeBeatPopup);
+  beatPopupClose.addEventListener('touchend', (e) => { e.preventDefault(); closeBeatPopup(); });
 
   // 완료 버튼
   document.getElementById('finish-btn').addEventListener('click', () => {
